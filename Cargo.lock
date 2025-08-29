@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "dma_accessible"
+name = "dma-accessible"
 version = "0.1.0"
 dependencies = [
  "grounded",
