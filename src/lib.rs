@@ -87,7 +87,7 @@ impl DmaAccessible for Itcm {
 ///
 /// # Safety
 /// The buffer address is validated at construction time to ensure it falls within the specified region.
-pub struct DmaBuffer<T, Region: DmaAccessible> {
+pub struct DmaBuffer<T, Region> {
     ptr: NonNull<T>,
     len: usize,
     _region: PhantomData<Region>,
