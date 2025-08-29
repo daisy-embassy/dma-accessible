@@ -46,6 +46,8 @@
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
+use grounded::uninit::GroundedArrayCell;
+
 // Trait representing a DMA-accessible memory region
 pub trait DmaAccessible {
     const START_ADDR: usize;
@@ -90,13 +92,13 @@ impl DmaAccessible for Itcm {
 ///
 /// # Safety
 /// The buffer address is validated at construction time to ensure it falls within the specified region.
-pub struct DmaBuffer<T, Region> {
+pub struct DmaBuffer<T, const LEN: usize, Region> {
     ptr: NonNull<T>,
-    len: usize,
     _region: PhantomData<Region>,
 }
 
-impl<T, Region: DmaAccessible> DmaBuffer<T, Region> {
+impl<T: Copy, const LEN: usize, Region: DmaAccessible> DmaBuffer<T, LEN, Region> {
+    pub const LENGTH: usize = LEN;
     /// Safe constructor: only accepts buffers placed in specific regions
     ///
     /// # Panics
@@ -105,26 +107,29 @@ impl<T, Region: DmaAccessible> DmaBuffer<T, Region> {
     /// # Safety
     /// The caller must ensure that the buffer remains valid for the lifetime of this struct
     /// and that no other references to the buffer exist while DMA operations are in progress.
-    pub fn new(buffer: &'static mut [T]) -> Self {
+    pub fn new(buffer: &GroundedArrayCell<T, LEN>, initialize_value: T) -> Self {
+        let buffer: &mut [T] = unsafe {
+            buffer.initialize_all_copied(initialize_value);
+            let (ptr, len) = buffer.get_ptr_len();
+            core::slice::from_raw_parts_mut(ptr, len)
+        };
+
         let addr = buffer.as_ptr() as usize;
         // Address range check at compile-time/runtime
         assert!(
-            addr >= Region::START_ADDR
-                && (addr + core::mem::size_of_val(buffer)) <= Region::END_ADDR,
+            addr >= Region::START_ADDR && (addr + LEN) <= Region::END_ADDR,
             "Buffer not in DMA-accessible region"
         );
-
-        let len = buffer.len();
+        assert_eq!(buffer.len(), LEN);
         Self {
             ptr: NonNull::from(buffer).cast(),
-            len,
             _region: PhantomData,
         }
     }
 
     /// Provide borrowing for embassy DMA transfer (buffer cannot be modified during transfer)
     pub fn as_slice(&self) -> &[T] {
-        unsafe { core::slice::from_raw_parts(self.ptr.as_ptr(), self.len) }
+        unsafe { core::slice::from_raw_parts(self.ptr.as_ptr(), LEN) }
     }
 
     /// Returns a mutable slice to the buffer.
@@ -132,7 +137,7 @@ impl<T, Region: DmaAccessible> DmaBuffer<T, Region> {
     /// # Safety
     /// The caller must ensure that no DMA operations are currently using this buffer.
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        unsafe { core::slice::from_raw_parts_mut(self.ptr.as_ptr(), self.len) }
+        unsafe { core::slice::from_raw_parts_mut(self.ptr.as_ptr(), LEN) }
     }
 
     /// Get internal pointer (for passing to embassy DMA functions; unsafe but guaranteed by type)
@@ -152,16 +157,6 @@ impl<T, Region: DmaAccessible> DmaBuffer<T, Region> {
     pub fn as_mut_ptr(&mut self) -> *mut T {
         self.ptr.as_ptr()
     }
-
-    /// Returns the length of the buffer.
-    pub fn len(&self) -> usize {
-        self.len
-    }
-
-    /// Returns true if the buffer is empty.
-    pub fn is_empty(&self) -> bool {
-        self.len == 0
-    }
 }
 
 #[cfg(test)]
@@ -177,11 +172,6 @@ mod tests {
     #[test]
     fn test() {
         static BUFFER: GroundedArrayCell<u8, 128> = GroundedArrayCell::uninit();
-        let tx_buffer: &mut [u8] = unsafe {
-            BUFFER.initialize_all_copied(0);
-            let (ptr, len) = BUFFER.get_ptr_len();
-            core::slice::from_raw_parts_mut(ptr, len)
-        };
-        let _da = DmaBuffer::<u8, Sram1>::new(tx_buffer);
+        let _da = DmaBuffer::<u8, 128, Sram1>::new(&BUFFER, 0);
     }
 }
