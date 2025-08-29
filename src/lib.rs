@@ -9,24 +9,24 @@ pub trait DmaAccessible {
     const END_ADDR: usize;
 }
 
-// Concrete memory region types (example for STM32H750)
+// Concrete memory region types
 pub struct Sram1;
 pub struct Dtcm;
 pub struct Itcm;
 
 impl DmaAccessible for Sram1 {
     const START_ADDR: usize = 0x3000_0000; // SRAM1 start address (RM0433, p. 131)
-    const END_ADDR: usize = 0x3002_0000;   // SRAM1 end address 
+    const END_ADDR: usize = 0x3002_0000; // SRAM1 end address
 }
 
 impl DmaAccessible for Dtcm {
     const START_ADDR: usize = 0x2000_0000; // DTCM start address (RM0433, p. 131)
-    const END_ADDR: usize = 0x2001_0000;   // DTCM end address 
+    const END_ADDR: usize = 0x2001_0000; // DTCM end address
 }
 
 impl DmaAccessible for Itcm {
     const START_ADDR: usize = 0x0000_0000; // ITCM start address (RM0433, p. 131)
-    const END_ADDR: usize = 0x0001_0000;   // ITCM end address
+    const END_ADDR: usize = 0x0001_0000; // ITCM end address
 }
 
 // DMA buffer wrapper type
@@ -42,10 +42,11 @@ impl<T, Region: DmaAccessible> DmaBuffer<T, Region> {
         let addr = buffer.as_ptr() as usize;
         // Address range check at compile-time/runtime
         assert!(
-            addr >= Region::START_ADDR && (addr + core::mem::size_of_val(buffer)) <= Region::END_ADDR,
+            addr >= Region::START_ADDR
+                && (addr + core::mem::size_of_val(buffer)) <= Region::END_ADDR,
             "Buffer not in DMA-accessible region"
         );
-        
+
         let len = buffer.len();
         Self {
             ptr: NonNull::from(buffer).cast(),
