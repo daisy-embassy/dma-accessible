@@ -21,7 +21,7 @@
 //! use grounded::uninit::GroundedArrayCell;
 //!
 //! // Buffer must be placed in a DMA-accessible region (e.g., SRAM1)
-//! #[link_section = ".sram1_bss"]
+//! #[unsafe(link_section = ".sram1_bss")]
 //! static BUFFER: GroundedArrayCell<u8, 1024> = GroundedArrayCell::uninit();
 //!
 //! let dma_buffer = unsafe {
