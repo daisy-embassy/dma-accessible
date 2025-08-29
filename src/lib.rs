@@ -10,8 +10,10 @@
 //! - DTCM-RAM (0x2000_0000 - 0x2002_0000)
 //! - ITCM-RAM (0x0000_0000 - 0x0002_0000)
 //!
-//! Attempting to access other memory regions (such as Flash memory or certain peripheral regions) will result in a bus error
-//! and cause the microcontroller to enter a Halt state. This crate ensures compile-time safety by restricting DMA buffers
+//! (see RM0433(datasheet), p. 130, p. 131)
+//!
+//! Attempting to access other memory regions will result in a bus error
+//! and cause the microcontroller to enter a Halt state. This crate ensures safety by restricting DMA buffers
 //! to these approved regions only.
 //!
 //! ## Usage
@@ -24,15 +26,16 @@
 //! #[unsafe(link_section = ".sram1_bss")]
 //! static BUFFER: GroundedArrayCell<u8, 1024> = GroundedArrayCell::uninit();
 //!
-//! let dma_buffer = unsafe {
+//! let raw_buffer = unsafe {
 //!     BUFFER.initialize_all_copied(0);
 //!     let (ptr, len) = BUFFER.get_ptr_len();
-//!     let tx_buffer = core::slice::from_raw_parts_mut(ptr, len);
-//!     DmaBuffer::<u8, Sram1>::new(tx_buffer)
+//!     core::slice::from_raw_parts_mut(ptr, len)
 //! };
+//! let dma_buffer = DmaBuffer::<u8, Sram1>::new(raw_buffer);
 //! ```
 //!
 //! ## Regions
+//! see RM0433(datasheet), p. 130, p. 131
 //!
 //! - `Sram1`: SRAM1 region (0x3000_0000 - 0x3002_0000)
 //! - `Dtcm`: DTCM-RAM region (0x2000_0000 - 0x2001_0000)
@@ -78,8 +81,8 @@ impl DmaAccessible for Itcm {
 
 /// A type-safe wrapper for DMA buffers that ensures the buffer is located in a DMA-accessible memory region.
 ///
-/// This struct provides compile-time guarantees that DMA operations will only target memory regions
-/// that are accessible via the AXI bus on STM32H750, preventing bus errors and system halts.
+/// This struct is just a wrapper for a slice of a type, but guarantees that DMA operations will only target memory regions
+/// that are accessible via the AXI bus on STM32H750, preventing bus errors.
 ///
 /// # Type Parameters
 /// - `T`: The type of elements in the buffer

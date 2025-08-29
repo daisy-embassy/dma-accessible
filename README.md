@@ -13,23 +13,8 @@ A Rust crate providing type-safe abstractions for DMA-accessible memory regions 
 - **DTCM-RAM** (0x2000_0000 - 0x2002_0000)  
 - **ITCM-RAM** (0x0000_0000 - 0x0002_0000)
 
-**Attempting to access other memory regions (such as Flash memory or certain peripheral regions) will result in a bus error and cause the microcontroller to enter a Halt state.** This crate ensures compile-time safety by restricting DMA buffers to these approved regions only.
-
-## Features
-
-- **Type Safety**: Compile-time guarantees that DMA buffers are in valid regions
-- **Zero Cost**: No runtime overhead for memory region validation
-- **Embassy Compatible**: Designed to work seamlessly with Embassy's DMA abstractions
-- **Memory Region Types**: Pre-defined types for common STM32H750 memory regions
-
-## Installation
-
-Add this to your `Cargo.toml`:
-
-```toml
-[dependencies]
-dma_accessible = "0.1.0"
-```
+**Attempting to access other memory regions will result in a bus error and cause the microcontroller to enter a Halt state.** Attempting to access other memory regions will result in a bus error
+and cause the microcontroller to enter a Halt state. This crate ensures safety by restricting DMA buffers to these approved regions only.
 
 ## Usage
 
@@ -37,36 +22,16 @@ dma_accessible = "0.1.0"
 
 ```rust
 use dma_accessible::{DmaBuffer, Sram1};
-
+use grounded::uninit::GroundedArrayCell;
 // Buffer must be placed in a DMA-accessible region (e.g., SRAM1)
-#[link_section = ".sram1"]
-static mut BUFFER: [u8; 1024] = [0; 1024];
-
-fn main() {
-    let dma_buffer = DmaBuffer::<u8, Sram1>::new(unsafe { &mut BUFFER });
-    
-    // Use with Embassy DMA
-    // dma_buffer.as_slice() or dma_buffer.as_ptr()
-}
-```
-
-### With Embassy
-
-```rust
-use dma_accessible::{DmaBuffer, Dtcm};
-use embassy_stm32::dma::Transfer;
-
-// DTCM-RAM buffer for fast access
-#[link_section = ".dtcm"]
-static mut TX_BUFFER: [u8; 256] = [0; 256];
-
-async fn dma_transfer() {
-    let dma_buf = DmaBuffer::<u8, Dtcm>::new(unsafe { &mut TX_BUFFER });
-    
-    // Safe to use with Embassy DMA transfers
-    let transfer = Transfer::new(/* ... */, dma_buf.as_slice());
-    transfer.await;
-}
+#[unsafe(link_section = ".sram1_bss")]
+static BUFFER: GroundedArrayCell<u8, 1024> = GroundedArrayCell::uninit();
+let raw_buffer = unsafe {
+    BUFFER.initialize_all_copied(0);
+    let (ptr, len) = BUFFER.get_ptr_len();
+    core::slice::from_raw_parts_mut(ptr, len)
+};
+let dma_buffer = DmaBuffer::<u8, Sram1>::new(raw_buffer);
 ```
 
 ## Memory Regions
@@ -77,27 +42,11 @@ async fn dma_transfer() {
 | `Dtcm` | 0x2000_0000 - 0x2001_0000 | Data Tightly Coupled Memory |
 | `Itcm` | 0x0000_0000 - 0x0001_0000 | Instruction Tightly Coupled Memory |
 
-## API Reference
-
-### `DmaBuffer<T, Region>`
-
-A type-safe wrapper for DMA buffers.
-
-#### Methods
-
-- `new(buffer: &'static mut [T]) -> Self`: Creates a new DMA buffer (panics if buffer is not in valid region)
-- `as_slice(&self) -> &[T]`: Returns an immutable slice
-- `as_mut_slice(&mut self) -> &mut [T]`: Returns a mutable slice  
-- `as_ptr(&self) -> *const T`: Returns a raw pointer
-- `as_mut_ptr(&mut self) -> *mut T`: Returns a mutable raw pointer
-- `len(&self) -> usize`: Returns buffer length
-- `is_empty(&self) -> bool`: Returns true if buffer is empty
-
 ## Safety Considerations
 
 - Buffers must be placed in DMA-accessible memory regions using linker sections
 - Ensure no other references exist to the buffer during DMA operations
-- The crate performs runtime checks in debug builds to validate memory regions
+- The crate performs runtime checks only(not compile-time)
 
 
 ## Contributing
