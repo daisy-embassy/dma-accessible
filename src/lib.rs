@@ -106,7 +106,7 @@ impl<T: Copy, const LEN: usize, Region: DmaAccessible> DmaBuffer<T, LEN, Region>
     /// (e.g., it could be a leaked heap allocation). It is just for rejecting local variable’s simple reference.
     /// For DMA safety, ensure the buffer is placed in a `static` variable.
     /// like:
-    /// ```rust,no-run
+    /// ```rust,no_run
     /// use dma_accessible::{DmaBuffer, Sram1};
     /// use grounded::uninit::GroundedArrayCell;
     ///
