@@ -102,7 +102,21 @@ impl<T: Copy, const LEN: usize, Region: DmaAccessible> DmaBuffer<T, LEN, Region>
     /// # Safety
     /// The caller must ensure that the buffer remains valid for the lifetime of this struct
     /// and that no other references to the buffer exist while DMA operations are in progress.
-    pub fn new(buffer: &GroundedArrayCell<T, LEN>, initialize_value: T) -> Self {
+    /// Note: The `'static` lifetime enforces the reference's validity but does not guarantee the buffer is a `static` variable
+    /// (e.g., it could be a leaked heap allocation). It is just for rejecting local variable’s simple reference.
+    /// For DMA safety, ensure the buffer is placed in a `static` variable.
+    /// like:
+    /// ```rust,no-run
+    /// use dma_accessible::{DmaBuffer, Sram1};
+    /// use grounded::uninit::GroundedArrayCell;
+    ///
+    /// // Buffer must be placed in a DMA-accessible region (e.g., SRAM1)
+    /// #[unsafe(link_section = ".sram1_bss")]
+    /// static BUFFER: GroundedArrayCell<u8, 1024> = GroundedArrayCell::uninit();
+    ///
+    /// let dma_buffer = DmaBuffer::<_, _, Sram1>::new(&BUFFER, 0);
+    /// ```
+    pub fn new(buffer: &'static GroundedArrayCell<T, LEN>, initialize_value: T) -> Self {
         let buffer: &mut [T] = unsafe {
             buffer.initialize_all_copied(initialize_value);
             let (ptr, len) = buffer.get_ptr_len();
