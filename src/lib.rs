@@ -26,12 +26,7 @@
 //! #[unsafe(link_section = ".sram1_bss")]
 //! static BUFFER: GroundedArrayCell<u8, 1024> = GroundedArrayCell::uninit();
 //!
-//! let raw_buffer = unsafe {
-//!     BUFFER.initialize_all_copied(0);
-//!     let (ptr, len) = BUFFER.get_ptr_len();
-//!     core::slice::from_raw_parts_mut(ptr, len)
-//! };
-//! let dma_buffer = DmaBuffer::<u8, Sram1>::new(raw_buffer);
+//! let dma_buffer = DmaBuffer::<_, _, Sram1>::new(&BUFFER, 0);
 //! ```
 //!
 //! ## Regions
