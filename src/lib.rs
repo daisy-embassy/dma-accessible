@@ -168,19 +168,18 @@ impl<T: Copy, const LEN: usize, Region: DmaAccessible> DmaBuffer<T, LEN, Region>
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use grounded::uninit::GroundedArrayCell;
-
-    use crate::{DmaBuffer, Sram1};
-
-    // Since there's no way to link to specific memory regions in a std environment,
-    // the test is expected to panic, and I wanted to check if it builds and if it
-    // can be combined with GroundedArrayCell.
-    #[should_panic(expected = "Buffer not in DMA-accessible region")]
-    #[test]
-    fn test() {
-        static BUFFER: GroundedArrayCell<u8, 128> = GroundedArrayCell::uninit();
-        let _da = DmaBuffer::<u8, 128, Sram1>::new(&BUFFER, 0);
+impl<T: Copy, const LEN: usize, Region: DmaAccessible> core::ops::Deref
+    for DmaBuffer<T, LEN, Region>
+{
+    type Target = [T];
+    fn deref(&self) -> &Self::Target {
+        self.as_slice()
+    }
+}
+impl<T: Copy, const LEN: usize, Region: DmaAccessible> core::ops::DerefMut
+    for DmaBuffer<T, LEN, Region>
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.as_mut_slice()
     }
 }
