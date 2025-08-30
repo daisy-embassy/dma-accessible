@@ -6,10 +6,9 @@ use dma_accessible::{DmaAccessible, DmaBuffer, Dtcm, Itcm, Sram1};
 use embassy_executor::Spawner;
 use embassy_stm32::{
     Peripherals, bind_interrupts,
-    i2c::{self, I2c},
+    i2c::{self, I2c, Master},
     mode::Async,
     peripherals,
-    time::Hertz,
 };
 use grounded::uninit::GroundedArrayCell;
 
@@ -39,7 +38,6 @@ async fn test_dma_buffer_creation(p: Peripherals) {
         Irqs,
         p.DMA1_CH4,
         p.DMA1_CH5,
-        Hertz::khz(100),
         Default::default(),
     );
 
@@ -68,7 +66,7 @@ async fn test_dma_buffer_creation(p: Peripherals) {
 
 async fn simple_dma_transfer<T: DmaAccessible, const LEN: usize>(
     mut src: DmaBuffer<u8, LEN, T>,
-    i2c: &mut I2c<'_, Async>,
+    i2c: &mut I2c<'_, Async, Master>,
 ) {
     const ADDRESS: u8 = 0x5F;
     const WHOAMI: u8 = 0x0F;
