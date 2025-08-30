@@ -50,4 +50,32 @@ SECTIONS
 
         PROVIDE(__sdram_bss_end = _esdram_bss);
     } > SDRAM
+
+    .itcm_bss (NOLOAD) :
+    {
+        . = ALIGN(4);
+        _sitcm_bss = .;
+
+        PROVIDE(__itcm_bss_start__ = _sitcm_bss);
+        *(.itcm_bss)
+        *(.itcm_bss*)
+        . = ALIGN(4);
+        _eitcm_bss = .;
+
+        PROVIDE(__itcm_bss_end__ = _eitcm_bss);
+    } > ITCMRAM
+
+    .dtcm_bss (NOLOAD) :
+    {
+        . = ALIGN(4);
+        _sdtcm_bss = .;
+
+        PROVIDE(__dtcm_bss_start__ = _sdtcm_bss);
+        *(.dtcm_bss)
+        *(.dtcm_bss*)
+        . = ALIGN(4);
+        _edtcm_bss = .;
+
+        PROVIDE(__dtcm_bss_end__ = _edtcm_bss);
+    } > DTCMRAM
 }

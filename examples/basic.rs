@@ -1,13 +1,13 @@
 #![no_std]
 #![no_main]
-use cortex_m_rt::entry;
 use defmt::info;
-use dma_accessible::{DmaAccessible, DmaBuffer, Sram1};
+use dma_accessible::{DmaAccessible, DmaBuffer, Dtcm, Itcm, Sram1};
 
 use embassy_executor::Spawner;
 use embassy_stm32::{
     Peripherals, bind_interrupts,
     i2c::{self, I2c},
+    mode::Async,
     peripherals,
     time::Hertz,
 };
@@ -42,20 +42,38 @@ async fn test_dma_buffer_creation(p: Peripherals) {
         Hertz::khz(100),
         Default::default(),
     );
-    // Buffer must be placed in a DMA-accessible region (e.g., SRAM1)
-    #[unsafe(link_section = ".sram1_bss")]
-    static BUFFER: GroundedArrayCell<u8, 1024> = GroundedArrayCell::uninit();
 
-    let mut dma_buffer = DmaBuffer::<u8, 1024, Sram1>::new(&BUFFER, 0);
-    assert_eq!(dma_buffer.len(), 1024);
+    {
+        info!("sram test");
+        #[unsafe(link_section = ".sram1_bss")]
+        static BUFFER_SRAM: GroundedArrayCell<u8, 1024> = GroundedArrayCell::uninit();
+        let dma_buffer = DmaBuffer::<u8, 1024, Sram1>::new(&BUFFER_SRAM, 0);
+        simple_dma_transfer(dma_buffer, &mut i2c).await;
+    }
+    {
+        info!("itcm test");
+        #[unsafe(link_section = ".itcm_bss")]
+        static BUFFER_ITCM: GroundedArrayCell<u8, 1024> = GroundedArrayCell::uninit();
+        let dma_buffer = DmaBuffer::<u8, 1024, Itcm>::new(&BUFFER_ITCM, 0);
+        simple_dma_transfer(dma_buffer, &mut i2c).await;
+    }
+    {
+        info!("dtcm test");
+        #[unsafe(link_section = ".dtcm_bss")]
+        static BUFFER_DTCM: GroundedArrayCell<u8, 1024> = GroundedArrayCell::uninit();
+        let dma_buffer = DmaBuffer::<u8, 1024, Dtcm>::new(&BUFFER_DTCM, 0);
+        simple_dma_transfer(dma_buffer, &mut i2c).await;
+    }
+}
+
+async fn simple_dma_transfer<T: DmaAccessible, const LEN: usize>(
+    mut src: DmaBuffer<u8, LEN, T>,
+    i2c: &mut I2c<'_, Async>,
+) {
     const ADDRESS: u8 = 0x5F;
     const WHOAMI: u8 = 0x0F;
     assert_eq!(
-        i2c.write_read(ADDRESS, &[WHOAMI], &mut dma_buffer).await,
+        i2c.write_read(ADDRESS, &[WHOAMI], &mut src).await,
         Err(i2c::Error::Timeout)
     );
-    // Additional test logic can be added here
-    simple_dma_transfer(dma_buffer);
 }
-
-fn simple_dma_transfer<T: DmaAccessible, const LEN: usize>(src: DmaBuffer<u8, LEN, T>) {}
