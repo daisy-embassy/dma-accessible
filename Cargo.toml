@@ -7,3 +7,9 @@ edition = "2024"
 grounded = "0.2.0"
 
 [dev-dependencies]
+panic-halt = "1.0.0"
+cortex-m-rt = "0.7"
+
+[[example]]
+name = "basic"
+path = "examples/basic.rs"
