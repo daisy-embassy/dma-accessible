@@ -167,3 +167,19 @@ impl<T: Copy, const LEN: usize, Region: DmaAccessible> DmaBuffer<T, LEN, Region>
         self.ptr.as_ptr()
     }
 }
+
+impl<T: Copy, const LEN: usize, Region: DmaAccessible> core::ops::Deref
+    for DmaBuffer<T, LEN, Region>
+{
+    type Target = [T];
+    fn deref(&self) -> &Self::Target {
+        self.as_slice()
+    }
+}
+impl<T: Copy, const LEN: usize, Region: DmaAccessible> core::ops::DerefMut
+    for DmaBuffer<T, LEN, Region>
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.as_mut_slice()
+    }
+}
